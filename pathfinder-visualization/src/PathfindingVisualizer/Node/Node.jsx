@@ -19,7 +19,8 @@ export default class Node extends Component {
         ? 'node-start'
         : isWall
         ? 'node-wall'
-        : '';
+        : ''
+        ;
   
       return (
         <div

@@ -11,11 +11,35 @@ const FINISH_NODE_COL = 35;
 
 const PathfindingVisualizer = () => {
   const [grid, setGrid] = useState([]);
+  const [initialGrid, setInitialGrid] = useState([]);
   const [mouseIsPressed, setMouseIsPressed] = useState(false);
 
   useEffect(() => {
-    setGrid(getInitialGrid());
+    const initialGrid = getInitialGrid();
+    setGrid(cloneGrid(initialGrid));
+    setInitialGrid(cloneGrid(initialGrid));
   }, []);
+
+  const resetGrid = () => {
+    const resetNodes = grid.map((row) =>
+      row.map((node) => {
+        const resetNode = {
+          ...node,
+          distance: Infinity,
+          isVisited: false,
+          isWall: false,
+          previousNode: null,
+        };
+        return resetNode;
+      })
+    );
+
+    setGrid(resetNodes);
+  };
+
+  const cloneGrid = (grid) => {
+    return grid.map((row) => row.map((node) => ({ ...node })));
+  };
 
   const handleMouseDown = (row, col) => {
     const newGrid = getNewGridWithWallToggled(grid, row, col);
@@ -79,11 +103,12 @@ const PathfindingVisualizer = () => {
   return (
     <>
       <button onClick={visualizeDijkstra}>Visualize Dijkstra's Algorithm</button>
+      <button onClick={resetGrid}>Clear Grid</button>
       <div className="grid">
         {grid.map((row, rowIdx) => (
           <div key={rowIdx}>
             {row.map((node, nodeIdx) => {
-              const { row, col, isFinish, isStart, isWall } = node;
+              const { row, col, isFinish, isStart, isWall} = node;
               return (
                 <Node
                   key={nodeIdx}
