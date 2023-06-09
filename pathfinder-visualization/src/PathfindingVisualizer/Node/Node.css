@@ -5,12 +5,33 @@
   display: inline-block;
 }
 
-.node-finish {
-  background-color: red;
-}
 
 .node-start {
+  /* Styles for the start node */
   background-color: green;
+  position: relative;
+}
+
+.node-start .start-icon {
+  /* Styles for the start icon */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.node-finish {
+  /* Styles for the finish node */
+  background-color: red;
+  position: relative;
+}
+
+.node-finish .finish-icon {
+  /* Styles for the finish icon */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .node-visited {

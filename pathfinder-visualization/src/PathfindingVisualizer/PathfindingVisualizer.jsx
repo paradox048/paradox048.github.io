@@ -1,66 +1,112 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback} from 'react';
 import Node from './Node/Node';
 import { dijkstra, getNodesInShortestPathOrder } from '../algorithms/dijkstra';
 
 import './PathfindingVisualizer.css';
 
-const START_NODE_ROW = 10;
-const START_NODE_COL = 15;
-const FINISH_NODE_ROW = 10;
-const FINISH_NODE_COL = 35;
+// const START_NODE_ROW = 10;
+// const START_NODE_COL = 15;
+// const FINISH_NODE_ROW = 10;
+// const FINISH_NODE_COL = 35;
 
 const PathfindingVisualizer = () => {
   const [grid, setGrid] = useState([]);
-  const [initialGrid, setInitialGrid] = useState([]);
-  const [mouseIsPressed, setMouseIsPressed] = useState(false);
+  const mouseIsPressed = useRef(false);
+  const [START_NODE_ROW, setStartNodeRow] = useState(5);
+  const [FINISH_NODE_ROW, setFinishNodeRow] = useState(5);
+  const [START_NODE_COL, setStartNodeCol] = useState(5);
+  const [FINISH_NODE_COL, setFinishNodeCol] = useState(45);
+  const [running, setRunnning] = useState(false);
+
 
   useEffect(() => {
-    const initialGrid = getInitialGrid();
-    setGrid(cloneGrid(initialGrid));
-    setInitialGrid(cloneGrid(initialGrid));
-  }, []);
-
-  const resetGrid = () => {
-    const resetNodes = grid.map((row) =>
-      row.map((node) => {
-        const resetNode = {
-          ...node,
-          distance: Infinity,
-          isVisited: false,
-          isWall: false,
-          previousNode: null,
-        };
-        return resetNode;
-      })
+    const initialGrid = getInitialGrid(
+      START_NODE_ROW,
+      START_NODE_COL,
+      FINISH_NODE_ROW,
+      FINISH_NODE_COL
     );
+    setGrid(initialGrid);
+  }, [START_NODE_ROW, START_NODE_COL, FINISH_NODE_ROW, FINISH_NODE_COL]);
+  
 
-    setGrid(resetNodes);
-  };
+  const handleMouseDown = useCallback((row, col) => {
+    if (!running) {
+      const newGrid = getNewGridWithWallToggled(grid, row, col);
+      setGrid(newGrid);
+      mouseIsPressed.current = true;
+    }
+  },[grid, running]);
 
-  const cloneGrid = (grid) => {
-    return grid.map((row) => row.map((node) => ({ ...node })));
-  };
+  const handleMouseEnter = useCallback((row, col) => {
+    if (!running && mouseIsPressed.current) {
+      const newGrid = getNewGridWithWallToggled(grid, row, col);
+      setGrid(newGrid);
+    }
+  },[grid, running]);
 
-  const handleMouseDown = (row, col) => {
-    const newGrid = getNewGridWithWallToggled(grid, row, col);
-    setGrid(newGrid);
-    setMouseIsPressed(true);
-  };
-
-  const handleMouseEnter = (row, col) => {
-    if (!mouseIsPressed) return;
-    const newGrid = getNewGridWithWallToggled(grid, row, col);
-    setGrid(newGrid);
-  };
-
-  const handleMouseUp = () => {
-    setMouseIsPressed(false);
-  };
+  const handleMouseUp = useCallback(() => {
+    mouseIsPressed.current = false;
+  },[]);
 
   const visualizeDijkstra = async () => {
+    setRunnning(true);
     const { visitedNodesInOrder, nodesInShortestPathOrder } = await animateDijkstra();
     animateShortestPath(nodesInShortestPathOrder);
+    setRunnning(false);
   };
+
+  /********** CLEARS THE GRID *************/
+  const clearWall = () => {
+    const initialGrid = getInitialGrid(START_NODE_ROW, START_NODE_COL, FINISH_NODE_ROW, FINISH_NODE_COL);
+    setGrid(initialGrid);
+  }
+  
+  const clearGrid = () => {
+    if (!running) {
+      const newGrid = grid.map((row) =>
+        row.map((node) => {
+          let nodeClassName = document.getElementById(
+            `node-${node.row}-${node.col}`
+          ).className;
+  
+          if (node.isStart || node.isFinish) {
+            return node;
+          }
+  
+          if (
+            nodeClassName !== "node node-start" &&
+            nodeClassName !== "node node-finish" &&
+            nodeClassName !== "node node-wall"
+          ) {
+            document.getElementById(`node-${node.row}-${node.col}`).className =
+              "node";
+  
+            // Reset node properties
+            node.isVisited = false;
+            node.isWall = false;
+            node.distance = Infinity;
+            node.distanceToFinishNode =
+              Math.abs(FINISH_NODE_ROW - node.row) +
+              Math.abs(FINISH_NODE_COL - node.col);
+            node.previousNode = null; // Reset the previousNode property
+          } else if (node.isStart) {
+            // Reset start node properties
+            node.isVisited = false;
+            node.distance = 0;
+            node.previousNode = null;
+          }
+          
+          return node;
+        })
+      );
+  
+      setGrid(newGrid);
+    }
+  };
+  
+  
+  
 
   const animateDijkstra = () => {
     return new Promise(resolve => {
@@ -80,7 +126,8 @@ const PathfindingVisualizer = () => {
             const node = visitedNodesInOrder[i];
             const element = document.getElementById(`node-${node.row}-${node.col}`);
             if (element) {
-              element.className = 'node node-visited';
+              if (!node.isFinish && !node.isStart)
+                element.className = 'node node-visited';
             }
           }, 10 * i);
         }
@@ -89,7 +136,7 @@ const PathfindingVisualizer = () => {
   };
 
   const animateShortestPath = nodesInShortestPathOrder => {
-    for (let i = 0; i < nodesInShortestPathOrder.length; i++) {
+    for (let i = 1; i < nodesInShortestPathOrder.length-1; i++) {
       setTimeout(() => {
         const node = nodesInShortestPathOrder[i];
         const element = document.getElementById(`node-${node.row}-${node.col}`);
@@ -100,10 +147,12 @@ const PathfindingVisualizer = () => {
     }
   };
 
+
   return (
     <>
       <button onClick={visualizeDijkstra}>Visualize Dijkstra's Algorithm</button>
-      <button onClick={resetGrid}>Clear Grid</button>
+      <button onClick={clearWall}>Clear Walls</button>
+      <button onClick={clearGrid} >Clear Grid</button>
       <div className="grid">
         {grid.map((row, rowIdx) => (
           <div key={rowIdx}>
@@ -132,20 +181,19 @@ const PathfindingVisualizer = () => {
 
 export default PathfindingVisualizer;
 
-// Utility functions (can be placed in separate files if desired)
-
-const getInitialGrid = () => {
+const getInitialGrid = (startNodeRow, startNodeCol, finishNodeRow, finishNodeCol) => {
   // Memoization cache
   const gridCache = getInitialGrid.cache || (getInitialGrid.cache = new Map());
-
-  const cachedGrid = gridCache.get(FINISH_NODE_ROW);
+  const cachedGrid = gridCache.get(finishNodeRow);
   if (cachedGrid) return cachedGrid;
 
   const grid = [];
   for (let row = 0; row < 20; row++) {
     const currentRow = [];
     for (let col = 0; col < 50; col++) {
-      currentRow.push(createNode(col, row));
+      currentRow.push(
+        createNode(col, row, startNodeRow, startNodeCol, finishNodeRow, finishNodeCol)
+      );
     }
     grid.push(currentRow);
   }
@@ -153,20 +201,27 @@ const getInitialGrid = () => {
   return grid;
 };
 
-const createNode = (col, row) => {
+
+const createNode = (col, row, START_NODE_ROW, START_NODE_COL, FINISH_NODE_ROW, FINISH_NODE_COL) => {
   return {
     col,
     row,
     isStart: row === START_NODE_ROW && col === START_NODE_COL,
     isFinish: row === FINISH_NODE_ROW && col === FINISH_NODE_COL,
     distance: Infinity,
+    distanceToFinishNode:
+              Math.abs(FINISH_NODE_ROW - row) +
+              Math.abs(FINISH_NODE_COL - col),
     isVisited: false,
     isWall: false,
     previousNode: null,
+    isNode: true,
   };
 };
 
+//
 const getNewGridWithWallToggled = (grid, row, col) => {
+
   const newGrid = [...grid];
   const node = newGrid[row][col];
   const newNode = { ...node, isWall: !node.isWall };
